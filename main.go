@@ -350,7 +350,7 @@ func main() {
 			for k, v := range gcdContainers {
 				dict.AnErr(k, v)
 			}
-			log.Info().Dict("gc-results", dict).Msgf("Garbage collection was run on %d containers")
+			log.Info().Dict("gc-results", dict).Msgf("Garbage collection was run on %d containers", len(gcdContainers))
 		}
 	}
 }
