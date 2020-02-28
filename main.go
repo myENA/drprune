@@ -129,7 +129,7 @@ func main() {
 
 	reg = registry.NewAPI(registryURL)
 
-	reg.SetClient(&http.Client{Transport: transport})
+	reg.SetHTTPClient(&http.Client{Transport: transport})
 
 	reg.SetPageSize(100000)
 	if !skipDeletes {
