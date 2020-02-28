@@ -9,7 +9,6 @@ github.com/Microsoft/hcsshim/osversion
 # github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
 github.com/armon/go-metrics
 # github.com/cego/docker-registry-pruner v0.0.0-20190904085958-83bcaac3e2d2
-## explicit
 github.com/cego/docker-registry-pruner/registry
 # github.com/containerd/containerd v1.3.0
 github.com/containerd/containerd/errdefs
@@ -51,7 +50,6 @@ github.com/docker/go-units
 # github.com/fatih/color v1.9.0
 github.com/fatih/color
 # github.com/fsouza/go-dockerclient v1.6.3
-## explicit
 github.com/fsouza/go-dockerclient
 # github.com/gogo/protobuf v1.2.1
 github.com/gogo/protobuf/proto
@@ -62,7 +60,6 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/hashicorp/consul/api v1.4.0
-## explicit
 github.com/hashicorp/consul/api
 # github.com/hashicorp/go-cleanhttp v0.5.1
 github.com/hashicorp/go-cleanhttp
@@ -89,7 +86,6 @@ github.com/mitchellh/mapstructure
 # github.com/morikuni/aec v0.0.0-20170113033406-39771216ff4c
 github.com/morikuni/aec
 # github.com/myENA/consul-decoder v0.2.5
-## explicit
 github.com/myENA/consul-decoder
 # github.com/opencontainers/go-digest v1.0.0-rc1
 github.com/opencontainers/go-digest
@@ -102,7 +98,6 @@ github.com/opencontainers/runc/libcontainer/user
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/rs/zerolog v1.18.0
-## explicit
 github.com/rs/zerolog
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
@@ -121,4 +116,3 @@ google.golang.org/grpc/connectivity
 google.golang.org/grpc/grpclog
 google.golang.org/grpc/internal
 google.golang.org/grpc/status
-# github.com/cego/docker-registry-pruner v0.0.0-20181210151009-317c18d0333f => ../../nathanejohnson/docker-registry-pruner
