@@ -1,5 +1,9 @@
 package models
 
+import (
+	"github.com/rs/zerolog"
+)
+
 type Config struct {
 	ReleaseTags []string `decoder:"release_tags,json"`
 
@@ -11,6 +15,13 @@ type Config struct {
 
 	// Minimum days before eviction is considered for all other images.
 	MinFeatureEvictionDays int `decoder:"min_feature_eviction_days"`
+}
+
+func (c Config) MarshalZerologObject(ev *zerolog.Event) {
+	ev.Strs("release_tags", c.ReleaseTags)
+	ev.Int("min_release_images", c.MinReleaseImages)
+	ev.Int("min_release_eviction_days", c.MinReleaseEvictionDays)
+	ev.Int("min_feature_eviction_days", c.MinFeatureEvictionDays)
 }
 
 func DefaultConfig() *Config {

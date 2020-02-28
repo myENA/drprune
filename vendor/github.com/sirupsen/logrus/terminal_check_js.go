@@ -1,4 +1,4 @@
-// +build js nacl plan9
+// +build js
 
 package logrus
 
