@@ -333,7 +333,7 @@ func main() {
 			if err != nil {
 				gcdContainers[c.ID] = err
 				log.Error().Err(err).Msg("CreateExec call failed")
-				continue
+				continue ContainerLoop
 			}
 			err = dc.StartExec(exec.ID, docker.StartExecOptions{
 				OutputStream: &stdOutBuf,
