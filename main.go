@@ -35,6 +35,7 @@ func main() {
 	var runGC bool
 	var drContainerName string
 	var drConfigFilePath string
+	var catalogPageSize int
 
 	fs := flag.NewFlagSet("drprune", flag.ExitOnError)
 	fs.StringVar(
@@ -98,6 +99,12 @@ func main() {
 		"/etc/docker/registry/config.yml",
 		"docker registry config file path inside container",
 	)
+	fs.IntVar(
+		&catalogPageSize,
+		"catalog-page-size",
+		10000,
+		"number of records to return per /v2/catalog api call",
+	)
 	_ = fs.Parse(os.Args[1:])
 
 	if registryURL == "" {
@@ -130,7 +137,7 @@ func main() {
 
 	reg.SetHTTPClient(&http.Client{Transport: transport})
 
-	reg.SetPageSize(100)
+	reg.SetPageSize(catalogPageSize)
 	if !skipDeletes {
 		cnl, err := api.NewClient(api.DefaultConfig())
 
