@@ -3,6 +3,8 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -67,6 +69,7 @@ func (a *API) GetRepositories() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		defer resp.Body.Close()
 
 		var catalog struct {
 			Repositories []string `json:"repositories"`
@@ -205,9 +208,7 @@ func (a *API) DeleteManifest(repository string, digest string) error {
 	return nil
 }
 
-func (a *API) request(method string, path string, version manifestVersion) (*http.Response, error) {
-	var resp *http.Response
-	var err error
+func (a *API) request(method string, path string, version manifestVersion) (resp *http.Response, err error) {
 
 	resp, err = a.registryRequest(method, path, version)
 	if err != nil {
@@ -218,6 +219,13 @@ func (a *API) request(method string, path string, version manifestVersion) (*htt
 		return resp, nil
 	}
 
+	defer func() {
+		if err != nil && resp != nil {
+
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
 	if resp.StatusCode == 401 && resp.Header.Get(wwwAuthenticateHeader) != "" {
 		token, err := a.fetchBearerToken(resp)
 		if err != nil {
@@ -293,7 +301,10 @@ func (a *API) fetchBearerToken(deniedResponse *http.Response) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 300 {
 		return "", fmt.Errorf("unexpected response code %d from token service", resp.StatusCode)
