@@ -165,7 +165,7 @@ func main() {
 
 		var tagsToDelete tagsMetaList
 		for _, repo := range repos {
-			p := path.Join(consulDefaultPath, repo)
+			p := path.Join(consulPrefix, repo)
 			kvs, _, err := cnl.KV().List(p, nil)
 			c := cfg
 			if err != nil {
@@ -238,8 +238,13 @@ func main() {
 		}
 
 		sort.Sort(sort.Reverse(tagsToDelete))
-		for _, t := range tagsToDelete {
-			log.Info().Str("repo", t.repo).Str("tag", t.tag).Msg("deleting")
+		l := len(tagsToDelete)
+		for i, t := range tagsToDelete {
+			log.Info().
+				Str("progress", fmt.Sprintf("%d of %d", i+1, l)).
+				Str("repo", t.repo).Str("tag", t.tag).
+				Time("created", t.created).
+				Msg("deleting")
 			err = reg.DeleteManifest(t.repo, t.digest)
 			if err != nil {
 				log.Error().Err(err).Str("repo", t.repo).Str("tag", t.tag).Msg("error deleting manifest")
