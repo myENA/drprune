@@ -237,7 +237,7 @@ func main() {
 
 		}
 
-		sort.Sort(sort.Reverse(tagsToDelete))
+		sort.Sort(tagsToDelete)
 		l := len(tagsToDelete)
 		for i, t := range tagsToDelete {
 			log.Info().
