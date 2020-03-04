@@ -226,7 +226,7 @@ func main() {
 				}
 			}
 			if len(releaseTags) > c.MinReleaseImages {
-				sort.Sort(releaseTags)
+				sort.Sort(sort.Reverse(releaseTags))
 				for _, rt := range releaseTags[c.MinReleaseImages:] {
 					d := time.Since(rt.created)
 					if d > time.Duration(int(time.Hour)*24*c.MinReleaseEvictionDays) {
