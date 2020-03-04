@@ -236,7 +236,7 @@ func main() {
 		sort.Sort(sort.Reverse(tagsToDelete))
 		for _, t := range tagsToDelete {
 			log.Info().Str("repo", t.repo).Str("tag", t.tag).Msg("deleting")
-			err = reg.DeleteManifest(url.QueryEscape(t.repo), t.digest)
+			err = reg.DeleteManifest(t.repo, t.digest)
 			if err != nil {
 				log.Error().Err(err).Str("repo", t.repo).Str("tag", t.tag).Msg("error deleting manifest")
 			}
