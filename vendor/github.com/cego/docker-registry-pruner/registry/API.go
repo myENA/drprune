@@ -146,7 +146,7 @@ func (a *API) GetManifestCreated(repository string, tag string) (time.Time, erro
 
 // GetManifestDigestAndCreated returns the digest and creation time.
 func (a *API) GetManifestDigestAndCreated(repository string, tag string) (string, time.Time, error) {
-	resp, err := a.request("GET", "/v2/"+repository+"/manifests/"+tag, manifestV2)
+	resp, err := a.request("GET", "/v2/"+repository+"/manifests/"+tag, manifestV1)
 	if err != nil {
 		return "", time.Time{}, err
 	}

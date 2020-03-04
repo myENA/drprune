@@ -30,4 +30,7 @@ require (
 	google.golang.org/grpc v1.27.1 // indirect
 )
 
-replace github.com/cego/docker-registry-pruner => github.com/nathanejohnson/docker-registry-pruner v0.0.0-20200304033253-76fc240f6a1c
+replace (
+	github.com/cego/docker-registry-pruner => github.com/nathanejohnson/docker-registry-pruner v0.0.0-20200303222404-fd7052297879
+	github.com/cego/docker-registry-pruner/registry => github.com/nathanejohnson/docker-registry-pruner/registry v0.0.0-20200303222404-fd7052297879
+)

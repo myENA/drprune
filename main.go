@@ -187,9 +187,14 @@ func main() {
 
 			var releaseTags tagsMetaList
 			for _, tag := range tags {
-				digest, created, err := reg.GetManifestDigestAndCreated(repo, tag)
+				created, err := reg.GetManifestCreated(repo, tag)
 				if err != nil {
 					log.Error().Err(err).Str("repo", repo).Str("tag", tag).Msg("could not get manifest created")
+					continue
+				}
+				digest, err := reg.GetDigest(repo, tag)
+				if err != nil {
+					log.Error().Err(err).Str("repo", repo).Str("tag", tag).Msg("could not get digest")
 					continue
 				}
 				var isRelease bool
