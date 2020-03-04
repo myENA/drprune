@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"sort"
@@ -179,7 +180,7 @@ func main() {
 				}
 				fmt.Printf("found config: %#v\n", c)
 			}
-			tags, err := reg.GetTags(repo)
+			tags, err := reg.GetTags(url.QueryEscape(repo))
 			if err != nil {
 				log.Error().Err(err).Str("repo", repo).Msg("error processing repository")
 				continue
@@ -187,7 +188,7 @@ func main() {
 
 			var releaseTags tagsMetaList
 			for _, tag := range tags {
-				digest, created, err := reg.GetManifestDigestAndCreated(repo, tag)
+				digest, created, err := reg.GetManifestDigestAndCreated(url.QueryEscape(repo), tag)
 				if err != nil {
 					log.Error().Err(err).Str("repo", repo).Str("tag", tag).Msg("could not get manifest created")
 					continue
@@ -235,7 +236,7 @@ func main() {
 		sort.Sort(sort.Reverse(tagsToDelete))
 		for _, t := range tagsToDelete {
 			log.Info().Str("repo", t.repo).Str("tag", t.tag).Msg("deleting")
-			err = reg.DeleteManifest(t.repo, t.digest)
+			err = reg.DeleteManifest(url.QueryEscape(t.repo), t.digest)
 			if err != nil {
 				log.Error().Err(err).Str("repo", t.repo).Str("tag", t.tag).Msg("error deleting manifest")
 			}
