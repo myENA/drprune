@@ -187,6 +187,9 @@ func main() {
 
 			var releaseTags tagsMetaList
 			for _, tag := range tags {
+				if tag == "latest" {
+					continue
+				}
 				created, err := reg.GetManifestCreated(repo, tag)
 				if err != nil {
 					log.Error().Err(err).Str("repo", repo).Str("tag", tag).Msg("could not get manifest created")
