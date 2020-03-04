@@ -180,7 +180,7 @@ func main() {
 				}
 				fmt.Printf("found config: %#v\n", c)
 			}
-			tags, err := reg.GetTags(url.QueryEscape(repo))
+			tags, err := reg.GetTags(repo)
 			if err != nil {
 				log.Error().Err(err).Str("repo", repo).Msg("error processing repository")
 				continue
@@ -188,7 +188,7 @@ func main() {
 
 			var releaseTags tagsMetaList
 			for _, tag := range tags {
-				digest, created, err := reg.GetManifestDigestAndCreated(url.QueryEscape(repo), tag)
+				digest, created, err := reg.GetManifestDigestAndCreated(repo, tag)
 				if err != nil {
 					log.Error().Err(err).Str("repo", repo).Str("tag", tag).Msg("could not get manifest created")
 					continue
