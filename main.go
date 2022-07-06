@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -9,17 +11,21 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cego/docker-registry-pruner/registry"
-	"github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/consul/api"
+	nomad "github.com/hashicorp/nomad/api"
 	"github.com/myENA/consul-decoder"
 	"github.com/myENA/drprune/models"
 	"github.com/rs/zerolog"
 )
+
+const drROKey = "REGISTRY_STORAGE_MAINTENANCE_READONLY"
 
 var log = zerolog.New(os.Stderr).With().Str("app", "drprune").Timestamp().Logger()
 
@@ -33,6 +39,7 @@ func main() {
 	var consulDefaultPath string
 	var skipDeletes bool
 	var runGC bool
+	var nomadJob string
 	var drContainerName string
 	var drConfigFilePath string
 
@@ -81,6 +88,12 @@ func main() {
 		"run garage collector",
 	)
 	fs.StringVar(
+		&nomadJob,
+		"nomad-job",
+		"docker-registry",
+		"this is the nomad job for the docker-registry - used for GC",
+	)
+	fs.StringVar(
 		&drContainerName,
 		"docker-registry-container-name-prefix",
 		"docker-registry",
@@ -105,6 +118,7 @@ func main() {
 		fs.Usage()
 		os.Exit(1)
 	}
+
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -255,48 +269,194 @@ func main() {
 		}
 	}
 	if runGC {
-		dc, err := docker.NewClientFromEnv()
+	}
+}
+
+func runGC(nomadJob string) error {
+	c, err := nomad.NewClient(nomad.DefaultConfig())
+	if err != nil {
+		return fmt.Errorf("could not create nomad client: %w", err)
+	}
+
+	job, _, err := c.Jobs().Info(nomadJob, nil)
+	if err != nil {
+		return fmt.Errorf("could not get information for %s: %w", nomadJob, err)
+	}
+
+	_, _, err = c.Jobs().Deregister(nomadJob, true, nil)
+	if err != nil {
+		return fmt.Errorf("could not shut down nomad job: %w", err)
+	}
+
+	JobSetReadOnlyEnv(job)
+
+	jerb, _, err := c.Jobs().Register(job, nil)
+	if err != nil {
+		return fmt.Errorf("could not register gc job: %w", err)
+	}
+
+	var allocID string
+	var lastIndex uint64
+	for i := 0; i < 10; i++ {
+		evals, meta, err := c.Evaluations().Allocations(jerb.EvalID, &nomad.QueryOptions{
+			WaitIndex: lastIndex,
+			WaitTime:  time.Second * 60,
+		})
+
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize docker client")
+			return fmt.Errorf("could not get evaluations: %w", err)
 		}
-		containers, err := dc.ListContainers(docker.ListContainersOptions{})
+
+		lastIndex = meta.LastIndex
+		if len(evals) > 0 {
+			ev := evals[0]
+			if ev.ClientStatus == nomad.AllocClientStatusRunning {
+				allocID = ev.ID
+				break
+			}
+			log.Info().Msg("status not yet healthy, retrying")
+		} else {
+			log.Info().Msg("no evaluations returned, retrying")
+		}
+	}
+	if len(allocID) == 0 {
+		return fmt.Errorf("could not get allocation")
+	}
+
+	lastIndex = 0
+	var alloc *nomad.Allocation
+	for i := 0; i < 10; i++ {
+		var meta *nomad.QueryMeta
+		var err error
+		alloc, meta, err = c.Allocations().Info(allocID, &nomad.QueryOptions{
+			WaitIndex: lastIndex,
+			WaitTime:  time.Second * 60,
+		})
 		if err != nil {
-			log.Fatal().Err(err).Msg("could not list containers")
+			return fmt.Errorf("fatal error fetching allocs for %w", err)
 		}
-		for _, c := range containers {
-			var found bool
-			for _, n := range c.Names {
-				if strings.HasPrefix(path.Base(n), drContainerName) {
-					found = true
+		lastIndex = meta.LastIndex
+		if alloc != nil && alloc.ClientStatus == nomad.AllocClientStatusRunning {
+			break
+		}
+
+		log.Info().Msg("alloc not found, retrying")
+
+	}
+
+	buf := &bytes.Buffer{}
+
+	s := bufio.NewScanner(buf)
+
+	name := job.TaskGroups[0].Tasks[0].Name
+	log.Debug().Msgf("task name: %s, allocID: %s", name, alloc.ID)
+	ex, err := c.Allocations().Exec(context.Background(), alloc, job.TaskGroups[0].Tasks[0].Name, false,
+		[]string{"ps", "-o", "pid,comm,args"}, nil, buf, nil, nil, nil)
+
+	if ex != 0 {
+		return fmt.Errorf("non-zero exit code: %d", ex)
+	}
+	if err != nil {
+		return fmt.Errorf("error from exec: %w", err)
+	}
+
+	psRecs, err := parsePS(s)
+	if err != nil {
+		return fmt.Errorf("could not parse ps response: %w", err)
+	}
+
+	var (
+		cfgFile, cmd string
+	)
+
+	for _, psr := range psRecs {
+		if strings.HasSuffix(psr.cmd, "registry") {
+			for _, arg := range psr.args {
+				if strings.HasSuffix(arg, ".yml") {
+					cfgFile = arg
+					cmd = psr.cmd
 					break
 				}
 			}
-			if found {
-				var stdOutBuf bytes.Buffer
-				var stdErrBuf bytes.Buffer
-				exec, err := dc.CreateExec(docker.CreateExecOptions{
-					Cmd:          []string{"/bin/registry", "garbage-collect", drConfigFilePath},
-					Container:    c.ID,
-					AttachStdout: true,
-					AttachStderr: true,
-				})
-				if err != nil {
-					log.Fatal().Err(err).Msg("failed to CreateExec")
-				}
-				err = dc.StartExec(exec.ID, docker.StartExecOptions{
-					OutputStream: &stdOutBuf,
-					ErrorStream:  &stdErrBuf,
-				})
-
-				if err != nil {
-					log.Error().Err(err).Msg("error running command")
-				}
-				fmt.Printf("stdout: \n%s\n", stdOutBuf.String())
-				fmt.Printf("stderr: \n%s\n", stdErrBuf.String())
-				break
-			}
 		}
 	}
+
+	if len(cfgFile) == 0 {
+		return fmt.Errorf("could not deteremine config file to use for GC")
+	}
+	if len(cmd) == 0 {
+		return fmt.Errorf("could not determine command that was run")
+	}
+
+	ex, err = c.Allocations().Exec(context.Background(), alloc, job.TaskGroups[0].Tasks[0].Name, false,
+		[]string{cmd, "garbage-collect", cfgFile}, nil, os.Stdout, os.Stderr, nil, nil)
+
+	if err != nil {
+		return fmt.Errorf("error running GC: %w", err)
+	}
+	if ex != 0 {
+		return fmt.Errorf("non-zero exit status: %d", ex)
+	}
+	return nil
+}
+
+type psRec struct {
+	pid  int
+	cmd  string
+	args []string
+}
+
+func parsePS(s *bufio.Scanner) ([]psRec, error) {
+	first := true
+	rex := regexp.MustCompile(`^\s*([0-9]+)\s*([^\s]+)\s*(.*)?\s*$`)
+	var psrs []psRec
+	for s.Scan() {
+		if first {
+			first = false
+			continue
+		}
+		line := s.Text()
+		matches := rex.FindStringSubmatch(line)
+		if len(matches) != 4 {
+			return nil, fmt.Errorf("invalid line %s", line)
+		}
+		var (
+			psr psRec
+			err error
+		)
+		psr.pid, err = strconv.Atoi(matches[1])
+		if err != nil {
+			return nil, fmt.Errorf("error converting pid to number: %w", err)
+		}
+		psr.cmd = matches[2]
+		psr.args = strings.Split(matches[3], " ")
+		psrs = append(psrs, psr)
+	}
+	return psrs, nil
+}
+
+func JobSetReadOnlyEnv(job *nomad.Job) error {
+	if len(job.TaskGroups) == 0 ||
+		len(job.TaskGroups[0].Tasks) == 0 {
+		return fmt.Errorf("invalid job - cannot find task")
+	}
+
+	t := job.TaskGroups[0].Tasks[0]
+
+	t.Env[drROKey] = `{"enabled":true}`
+	return nil
+}
+
+func JobClearReadOnlyEnv(job *nomad.Job) error {
+	if len(job.TaskGroups) == 0 ||
+		len(job.TaskGroups[0].Tasks) == 0 {
+		return fmt.Errorf("invalid job - cannot find task")
+	}
+
+	t := job.TaskGroups[0].Tasks[0]
+
+	delete(t.Env, drROKey)
+	return nil
 }
 
 type tagsMeta struct {

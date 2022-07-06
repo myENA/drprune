@@ -8,7 +8,7 @@ require (
 	github.com/cego/docker-registry-pruner v0.0.0-00010101000000-000000000000
 	github.com/containerd/containerd v1.3.3 // indirect
 	github.com/containerd/continuity v0.0.0-20200107194136-26c1120b8d41 // indirect
-	github.com/fsouza/go-dockerclient v1.6.3
+	github.com/fsouza/go-dockerclient v1.6.3 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.4 // indirect
 	github.com/hashicorp/consul/api v1.4.0
@@ -16,7 +16,10 @@ require (
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
+	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/memberlist v0.1.6 // indirect
+	github.com/hashicorp/nomad v0.10.4
+	github.com/hashicorp/nomad/api v0.0.0-20200304154451-951fb027a0cb
 	github.com/hashicorp/serf v0.8.5 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/mattn/go-colorable v0.1.6 // indirect
